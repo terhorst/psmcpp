@@ -24,6 +24,7 @@ class ConditionedSFS
     Matrix<T> matrix() const { return csfs; }
     static Matrix<T> calculate_sfs(const PiecewiseExponentialRateFunction<T> &eta, int n, int num_samples, 
             const MatrixInterpolator &moran_interp, double tau1, double tau2, int numthreads, double theta);
+    T T_singletons(int, T, T);
 
     private:
     // Methods

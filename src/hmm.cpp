@@ -165,7 +165,6 @@ adouble HMM::Q(void)
     adouble r2 = (gam * B.array().log()).sum();
     adouble r3 = (xis * transition->array().log()).sum();
     adouble ret = r1 + r2 + r3;
-    Matrix<adouble> Bl = B.array().log().matrix();
     /*
     for (int i = 0; i < Bl.rows(); ++i)
         for (int j = 0; j < Bl.cols(); ++j)

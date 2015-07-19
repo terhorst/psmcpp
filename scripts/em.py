@@ -13,7 +13,7 @@ import psmcpp.scrm, psmcpp.bfgs, psmcpp._pypsmcpp, psmcpp.util
 
 num_threads = 12
 block_size = 25
-num_samples = 50
+num_samples = 200
 np.set_printoptions(linewidth=120, precision=6, suppress=True)
 
 # 1. Generate some data. 
@@ -21,7 +21,7 @@ n = int(sys.argv[1])
 N0 = 10000
 rho = 1e-9
 theta = 2.5e-8
-L = int(2e7)
+L = int(1e7)
 a = np.array([10., 1., .1, 2.])
 b = np.array([1., 1., .1, 2.])
 s = np.array([5000.0, 50000.0, 10000., 10000.]) / 25.0 / (2 * N0)
@@ -32,19 +32,25 @@ demography = psmcpp.scrm.demography_from_params((a * 2.0, b * 2.0, s))
 data = psmcpp.scrm.simulate(n, N0, theta, rho, L, demography, False)
 obs_pairs = [(2 * k, 2 * k + 1) for k in range(int(sys.argv[2]))]
 obs_list = [psmcpp.scrm.hmm_data_format(data, cols) for cols in obs_pairs]
+print(obs_list[0][:20])
+for ol in obs_list:
+    ol[ol[:, 1] == 1, 2] = 0
+    ol[np.logical_and(ol[:, 1] == 0, ol[:, 2] > 1), 2] = 0
+    ol[ol[:, 1] == 2, 1:] = [0, 0]
+print(obs_list[0][:20])
 
 # 4. Optimize this function
 hidden_states = np.array([0., np.inf]) / 25.0 / (2 * N0)
 im = psmcpp._pypsmcpp.PyInferenceManager(n - 2, obs_list, hidden_states,
         2.0 * N0 * theta, 2.0 * N0 * rho * block_size,
-        block_size, num_threads, num_samples, 10)
+        block_size, num_threads, num_samples, 10, [0], None)
 hs1 = im.balance_hidden_states((a, b, s), 10)
 em = np.arange(3 *  (n - 1), dtype=int).reshape([3, n - 1])
 em[0] = em[2] = 0
 em[1] = 1
 im = psmcpp._pypsmcpp.PyInferenceManager(n - 2, obs_list, hs1,
         4.0 * N0 * theta, 4.0 * N0 * rho * block_size,
-        block_size, num_threads, num_samples, 20, em)
+        block_size, num_threads, num_samples, 10, [0], em)
 # im.setDebug(True)
 im.setParams((a, b, s), True)
 im.Estep()
@@ -55,7 +61,6 @@ im.setParams((a * [.1, 1, 1, 1], b, s), True)
 im.Estep()
 print("log likelikhood at wrong parameters:", im.loglik(lam))
 print("Q at wrong parameters:", im.Q(lam))
-aoeu
 
 print(" - Estimated sfs:")
 print(im.sfs((a, b, s), 0, np.inf))

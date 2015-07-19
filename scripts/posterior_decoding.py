@@ -90,17 +90,23 @@ bs = {}
 true_pos = {}
 ims = {}
 oo = {}
+oo_orig = {}
 for nn in nns:
     # subset data. some sites might be non-segregating in the subsample.
     seg = [i for i, pos in enumerate(data[1]) if any(not h[i] for h in data[2][:nn])]
     segdata = [bitarray.bitarray(ba[i] for i in seg) for ba in data[2][:nn]]
     dsub = (data[0], data[1][seg], segdata, data[3])
     obs = psmcpp.scrm.hmm_data_format(dsub, (0, 1))
-    oo[nn] = np.array([c1[1:] for c1 in obs for _ in range(c1[0])])
+    oo_orig[nn] = obs.copy()
+    ol = obs
+    ol[ol[:, 1] == 1, 2] = 0
+    ol[np.logical_and(ol[:, 1] == 0, ol[:, 2] > 1), 2] = 0
+    ol[ol[:, 1] == 2, 1:] = [0, 0]
+    oo[nn] = ol
     hidden_states = np.array([0., np.inf])
     im = psmcpp._pypsmcpp.PyInferenceManager(nn - 2, [obs], hidden_states,
             4.0 * N0 * theta, 4.0 * N0 * rho,
-            block_size, num_threads, num_samples, 10, None)
+            block_size, num_threads, num_samples, 10, [0], None)
     hidden_states = im.balance_hidden_states((a, b, s), M)
     print("balanced hidden states", hidden_states)
     em = np.arange(3 *  (nn - 1), dtype=int).reshape([3, nn - 1])
@@ -115,7 +121,7 @@ for nn in nns:
     # em[1, 1:2] = 4
     im = psmcpp._pypsmcpp.PyInferenceManager(nn - 2, [obs], hidden_states,
             4.0 * N0 * theta, 4.0 * N0 * rho,
-            block_size, num_threads, num_samples, 20, em)
+            block_size, num_threads, num_samples, 5, [0], em)
     im.seed = np.random.randint(0, sys.maxint)
     im.setParams((a, b, s), False)
     im.Estep()

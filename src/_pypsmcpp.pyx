@@ -53,7 +53,7 @@ cdef class PyInferenceManager:
 
     def __cinit__(self, int n, observations, hidden_states, 
             double theta, double rho, int block_size, int num_threads, int num_samples,
-            int mask_freq, mask_offset, emission_mask = None):
+            int mask_freq, mask_offset, emission_mask=None):
         self.seed = 1
         self._n = n
         cdef int[:, ::1] vob
@@ -68,6 +68,7 @@ cdef class PyInferenceManager:
             vob = ob
             obs.push_back(&vob[0, 0])
         self._num_hmms = len(observations)
+        # FIXME
         mats, ts = moran_model.interpolators(n)
         self._moran_mats = mats
         self._moran_ts = ts
