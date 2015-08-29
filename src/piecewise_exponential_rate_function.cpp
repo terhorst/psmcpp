@@ -238,6 +238,7 @@ Matrix<T> PiecewiseExponentialRateFunction<T>::tjj_all_above(const int n,
         const MatrixXq &Uinv_mp2) const
 {
     Matrix<T> Ch(n + 1, n), ret(3, n + 1), T_subtend;
+    ret.setZero();
     for (int j = 2; j < n + 3; ++j)
     {
         long lam = nC2(j) - 1;

@@ -28,7 +28,9 @@ HMM::HMM(Eigen::Matrix<int, Eigen::Dynamic, 2> obs, const int block_size,
     obs(obs), block_size(block_size), 
     pi(pi), transition(transition), emission(emission), emission_mask(emission_mask),
     mask_freq(mask_freq), mask_offset(mask_offset),
-    M(pi->rows()), Ltot(num_blocks(obs.col(0).sum(), block_size, mask_freq, mask_offset)),
+    M(pi->rows()), 
+    // Ltot(num_blocks(obs.col(0).sum(), block_size, mask_freq, mask_offset)),
+    Ltot(obs.col(0).sum() / 5000),
     Bptr(Ltot), logBptr(Ltot), alpha_hat(M, Ltot), beta_hat(M, Ltot), gamma(M, Ltot), xisum(M, M), c(Ltot) 
 { 
     prepare_B();
@@ -42,7 +44,7 @@ void HMM::prepare_B()
     const Matrix<adouble> *em_ptr;
     bool alt_block, alt_block_next;
     int current_block_size = 1;
-    unsigned long int R, ob, i = 0, block = 0, tobs = 0;
+    unsigned long int R, ob, i = 0, block = 0, cob = 0, tobs = 0;
     std::pair<bool, std::map<int, int>> key;
     unsigned long int L = obs.col(0).sum();
     for (unsigned long int ell = 0; ell < obs.rows(); ++ell)
@@ -51,28 +53,14 @@ void HMM::prepare_B()
         ob = obs(ell, 1);
         for (int r = 0; r < R; ++r)
         {
-            powers[ob]++;
-            if (tobs > L)
-                throw std::domain_error("what?");
-            tobs++;
-            if (++i == current_block_size or (r == R - 1 and ell == obs.rows() - 1))
+            if (tobs++ % 5000 == 0)
             {
-                i = 0;
-                alt_block = (block + mask_offset) % mask_freq == 0;
-                alt_block_next = (block + mask_offset) % mask_freq == mask_freq - 1;
-                em_ptr = alt_block ? emission : emission_mask;
-                key = {alt_block, powers};
-                if (block_prob_map.count(key) == 0)
-                {
-                    tmp.setOnes();
-                    for (auto &p : powers)
-                        tmp = tmp.cwiseProduct(em_ptr->col(p.first).array().pow(p.second).matrix());
-                    block_prob_map[key] = {tmp, tmp.array().log()};
-                }
-                Bptr[block] = &block_prob_map[key].first;
-                logBptr[block++] = &block_prob_map[key].second;
-                block_prob_counts[key]++;
-                current_block_size = (alt_block_next) ? 1 : block_size;
+                powers[ob]++;
+                key = {true, powers};
+                em_ptr = emission;
+                block_prob_map[key] = {em_ptr->col(ob), em_ptr->col(ob).array().log().matrix()};
+                Bptr[cob] = &block_prob_map[key].first;
+                logBptr[cob++] = &block_prob_map[key].second;
                 powers.clear();
             }
         }
@@ -171,17 +159,15 @@ void HMM::recompute_B(void)
     const Matrix<adouble> *em_ptr;
     Vector<adouble> tmp(M);
     bool alt_block;
-    double mult = 1.0;
     for (auto &bp_pair : block_prob_map)
     {
         alt_block = bp_pair.first.first;
         em_ptr = alt_block ? emission : emission_mask;
         std::map<int, int> power = bp_pair.first.second;
         tmp.setOnes();
-        // mult = alt_block ? 1000.0 : 1.0;
         for (auto &pow : power)
             tmp = tmp.cwiseProduct(em_ptr->col(pow.first).array().pow(pow.second).matrix());
-        block_prob_map[bp_pair.first] = {tmp, mult * tmp.array().log()};
+        block_prob_map[bp_pair.first] = {tmp, tmp.array().log()};
     }
     PROGRESS_DONE();
 }
@@ -189,8 +175,7 @@ void HMM::recompute_B(void)
 void HMM::forward_backward(void)
 {
     PROGRESS("forward backward");
-    Matrix<double> tt = transition->transpose().template cast<double>();
-    Matrix<double> ttpow = tt.pow(block_size);
+    Matrix<double> tt = transition->template cast<double>().pow(5000);
     // Matrix<double> bt = B.template cast<double>();
     alpha_hat.col(0) = pi->template cast<double>().cwiseProduct(Bptr[0]->template cast<double>());
 	c(0) = alpha_hat.col(0).sum();
@@ -198,19 +183,15 @@ void HMM::forward_backward(void)
     for (int ell = 1; ell < Ltot; ++ell)
     {
         // alpha_hat.col(ell) = bt.col(ell).asDiagonal() * (((ell + mask_offset) % mask_freq == 0) ? tt : ttpow) * alpha_hat.col(ell - 1);
-        alpha_hat.col(ell) = Bptr[ell]->template cast<double>().asDiagonal() * 
-            (((ell + mask_offset) % mask_freq == 0) ? tt : ttpow) * alpha_hat.col(ell - 1);
+        alpha_hat.col(ell) = Bptr[ell]->template cast<double>().asDiagonal() * tt.transpose() * alpha_hat.col(ell - 1);
         c(ell) = alpha_hat.col(ell).sum();
         if (std::isnan(toDouble(c(ell))))
             throw std::domain_error("something went wrong in forward algorithm");
         alpha_hat.col(ell) /= c(ell);
     }
     beta_hat.col(Ltot - 1) = Vector<double>::Ones(M);
-    tt = transition->template cast<double>();
-    ttpow = tt.pow(block_size);
     for (int ell = Ltot - 2; ell >= 0; --ell)
-        beta_hat.col(ell) = (((ell + 1 + mask_offset) % mask_freq == 0) ? tt : ttpow) * 
-            Bptr[ell + 1]->template cast<double>().asDiagonal() * beta_hat.col(ell + 1) / c(ell + 1);
+        beta_hat.col(ell) = tt * Bptr[ell + 1]->template cast<double>().asDiagonal() * beta_hat.col(ell + 1) / c(ell + 1);
     PROGRESS_DONE();
 }
 
@@ -223,8 +204,7 @@ void HMM::Estep(void)
     Matrix<double> gs = gamma.colwise().sum();
     xisum = Matrix<double>::Zero(M, M);
     for (int ell = 1; ell < Ltot; ++ell)
-        xisum = xisum + alpha_hat.col(ell - 1) * Bptr[ell]->template cast<double>().
-            cwiseProduct(beta_hat.col(ell)).transpose() / c(ell);
+        xisum = xisum + alpha_hat.col(ell - 1) * Bptr[ell]->template cast<double>().cwiseProduct(beta_hat.col(ell)).transpose() / c(ell);
     Matrix<double> tr = transition->template cast<double>();
     xisum = xisum.cwiseProduct(tr);
     PROGRESS_DONE();
@@ -251,15 +231,12 @@ adouble HMM::Q(void)
     std::sort(a.begin(), a.end(), 
             [] (const decltype(counts)::value_type *a, const decltype(counts)::value_type *b)
             { return a->second > b->second; });
-    /*
+    return ret;
     for (auto aa : a)
     {
-        if (aa->second < 100)
-            continue;
         std::cout << "count: " << aa->second << std::endl;
         std::cout << reverse_map[aa->first] << std::endl;
         std::cout << aa->first->template cast<double>().transpose() << std::endl << std::endl;
     }
-    */
     return ret;
 }

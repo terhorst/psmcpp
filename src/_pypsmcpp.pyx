@@ -7,7 +7,7 @@ import moran_model
 import collections
 import scipy.optimize
 
-init_eigen();
+init_eigen()
 
 logger = logging.getLogger(__name__)
 

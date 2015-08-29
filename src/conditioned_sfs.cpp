@@ -195,7 +195,6 @@ std::vector<Matrix<T> > ConditionedSFS<T>::compute_above(
     const PiecewiseExponentialRateFunction<T> &eta
     )
 {
-    mpfr::mpreal::set_default_prec(53);
     PROGRESS("compute above");
     MoranEigensystem mei = compute_moran_eigensystem(n);
     int H = eta.hidden_states.size() - 1;
@@ -205,15 +204,18 @@ std::vector<Matrix<T> > ConditionedSFS<T>::compute_above(
     std::vector<double> hidden_states = eta.hidden_states;
     MatrixXq Uinv_mp0 = mei.Uinv.rightCols(n);
     MatrixXq Uinv_mp2 = mei.Uinv.reverse().leftCols(n);
+    std::vector<Matrix<T> > ret(H, Matrix<T>::Zero(3, n + 1));
     for (int h = 0; h < H; ++h)
     {
         PiecewiseExponentialRateFunction<T> e2(eta.params, eta.derivatives, {hidden_states[h], hidden_states[h + 1]});
         results.emplace_back(tp.enqueue([e2, this, &Uinv_mp0, &Uinv_mp2]
-                    { return e2.template tjj_all_above(this->n, this->X0, Uinv_mp0, this->X2, Uinv_mp2); }));
+                     { return e2.template tjj_all_above(this->n, this->X0, Uinv_mp0, this->X2, Uinv_mp2); }));
     }
-    std::vector<Matrix<T> > ret(H, Matrix<T>::Zero(3, n + 1));
     for (int h = 0; h < H; ++h) 
+    {
         ret[h] = results[h].get();
+        // std::cout << "******** " << h << std::endl << ret[h].template cast<double>().transpose() << std::endl << std::endl << std::endl;
+    }
     PROGRESS_DONE();
     return ret;
 }
@@ -227,6 +229,8 @@ std::vector<Matrix<T> > ConditionedSFS<T>::compute(const PiecewiseExponentialRat
     {
         ret[i] = above[i] + below[i];
         T tauh = ret[i].sum();
+        if (isnan(toDouble(tauh)))
+            throw std::domain_error("nan entry in sfs");
         ret[i] *= -expm1(-theta * tauh) / tauh;
         ret[i](0, 0) = exp(-theta * tauh);
     }

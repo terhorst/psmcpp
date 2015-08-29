@@ -103,7 +103,7 @@ void Transition<T>::compute(void)
             Phi(j - 1, k - 1) = dmax(r, 1e-16);
         }
     // Normalize because small errors might throw off the fwd-backward algorithm later on
-    Phi = Phi.array().colwise() / Phi.array().rowwise().sum();
+    Phi = Phi.rowwise().sum().cwiseInverse().asDiagonal() * Phi;
 }
 
 template <typename T>
