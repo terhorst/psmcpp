@@ -78,6 +78,7 @@ class InferenceManager
     Matrix<double> getTransition();
     Matrix<double> getEmission();
     Matrix<double> getMaskedEmission();
+    void print_counts();
 
     private:
     typedef std::unique_ptr<HMM> hmmptr;

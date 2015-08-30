@@ -131,6 +131,9 @@ cdef class PyInferenceManager:
     def gammas(self):
         return _make_em_matrix(self._im.getGammas())
 
+    def print_counts(self):
+        self._im.print_counts()
+
     # def Bs(self):
     #     cdef vector[pMatrixAd] mats = self._im.getBs()
     #     cdef double[:, ::1] v

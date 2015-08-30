@@ -53,7 +53,7 @@ void HMM::prepare_B()
         ob = obs(ell, 1);
         for (int r = 0; r < R; ++r)
         {
-            if (tobs++ % 5000 == 0)
+            if (tobs++ % 5000 == mask_offset)
             {
                 powers[ob]++;
                 key = {true, powers};
@@ -216,7 +216,7 @@ adouble HMM::Q(void)
     Eigen::Array<adouble, Eigen::Dynamic, Eigen::Dynamic> gam = gamma.template cast<adouble>().array();
     Eigen::Array<adouble, Eigen::Dynamic, Eigen::Dynamic> xis = xisum.template cast<adouble>().array();
     adouble ret = (gam.col(0) * pi->array().log()).sum();
-    std::map<const decltype(logBptr)::value_type, int> counts;
+    counts.clear();
     for (int ell = 0; ell < Ltot; ++ell)
     {
         ret += (gam.col(ell) * (*logBptr[ell])).sum();
@@ -225,18 +225,21 @@ adouble HMM::Q(void)
     }
     ret += (xis * transition->array().log()).sum();
     PROGRESS_DONE();
+    return ret;
+}
+
+void HMM::print_counts(void)
+{
     std::vector<decltype(counts)::value_type*> a;
     for (auto &p : counts)
         a.push_back(&p);
     std::sort(a.begin(), a.end(), 
             [] (const decltype(counts)::value_type *a, const decltype(counts)::value_type *b)
             { return a->second > b->second; });
-    return ret;
     for (auto aa : a)
     {
         std::cout << "count: " << aa->second << std::endl;
         std::cout << reverse_map[aa->first] << std::endl;
         std::cout << aa->first->template cast<double>().transpose() << std::endl << std::endl;
     }
-    return ret;
 }

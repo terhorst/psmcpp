@@ -46,13 +46,14 @@ InferenceManager::InferenceManager(
     emission_mask = Matrix<adouble>::Zero(M, 3 * (n + 1));
     Eigen::Matrix<int, Eigen::Dynamic, 2>  ob(L, 2);
     Eigen::Matrix<int, Eigen::Dynamic, 3>  tmp(L, 3);
+    int off = 0;
     for (auto &obs : observations)
     {
         tmp = Eigen::Matrix<int, Eigen::Dynamic, 3, Eigen::RowMajor>::Map(obs, L, 3);
         ob.col(0) = tmp.col(0);
         ob.col(1) = (n + 1) * tmp.col(1) + tmp.col(2);
-        for (int off : mask_offset)
-            hmms.push_back(hmmptr(new HMM(ob, block_size, &pi, &transition, &emission, &emission_mask, mask_freq, off)));
+        hmms.push_back(hmmptr(new HMM(ob, block_size, &pi, &transition, &emission, &emission_mask, mask_freq, off)));
+        off += 100;
     }
 }
 
@@ -184,6 +185,7 @@ std::vector<Matrix<double>*> InferenceManager::getGammas()
     return ret;
 }
 
+/*
 std::vector<Matrix<adouble>*> InferenceManager::getBs()
 {
     std::vector<Matrix<adouble>*> ret;
@@ -192,6 +194,13 @@ std::vector<Matrix<adouble>*> InferenceManager::getBs()
         ret.push_back(&hmm->B);
     }
     return ret;
+}
+*/
+
+void InferenceManager::print_counts()
+{
+    for (auto &hmm : hmms)
+        hmm->print_counts();
 }
 
 Matrix<double> InferenceManager::getPi(void)

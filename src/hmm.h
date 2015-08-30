@@ -67,6 +67,7 @@ class HMM
     double loglik(void);
     adouble Q(void);
     // std::vector<int>& viterbi(void);
+    void print_counts();
 
     private:
     HMM(HMM const&) = delete;
@@ -84,7 +85,6 @@ class HMM
     const Vector<adouble> *pi;
     const Matrix<adouble> *transition, *emission, *emission_mask;
     const int mask_freq, mask_offset, M, Ltot;
-    Matrix<adouble> B;
     std::vector<Vector<adouble>*> Bptr;
     std::vector<Eigen::Array<adouble, Eigen::Dynamic, 1>*> logBptr;
     Matrix<double> alpha_hat, beta_hat, gamma, xisum;
@@ -93,6 +93,7 @@ class HMM
     std::unordered_map<std::pair<bool, std::map<int, int> >, std::pair<Vector<adouble>, Eigen::Array<adouble, Eigen::Dynamic, 1> > > block_prob_map;
     std::unordered_map<Eigen::Array<adouble, Eigen::Dynamic, 1>*, decltype(block_prob_map)::key_type> reverse_map;
     std::unordered_map<std::pair<bool, std::map<int, int> >, int > block_prob_counts;
+    std::map<const decltype(logBptr)::value_type, int> counts;
     friend class InferenceManager;
 };
 

@@ -41,6 +41,7 @@ cdef extern from "inference_manager.h":
         Matrix[double] getTransition()
         Matrix[double] getEmission()
         Matrix[double] getMaskedEmission()
+        void print_counts()
 
 cdef extern from "conditioned_sfs.h":
     void cython_calculate_sfs(const vector[vector[double]] params,
