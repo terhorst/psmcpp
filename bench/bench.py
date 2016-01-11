@@ -69,8 +69,9 @@ mu = 1e-8
 rho = mu / 4.
 
 lambda_penalty = 0.0
-im = psmcpp._pypsmcpp.PyInferenceManager(n - 2, obs_list, hs, 4.0 * N0 * mu, 4.0 * N0 * rho)
-im.spanCutoff = 64
+# Emission mask
+em = np.arange(3 * (n - 1), dtype=int).reshape([3, n - 1])
+im = psmcpp._pypsmcpp.PyInferenceManager(n - 2, obs_list, hs, 4.0 * N0 * mu, 4.0 * N0 * rho, 50, n, em)
 K = len(s)
 x0 = np.ones([2, K])
 a, b = x0
@@ -83,4 +84,6 @@ im.setParams((a,b,s),False)
 st = time.time()
 im.Estep()
 print("estep time: %f" % (time.time() - st))
+psmcpp._pypsmcpp.do_progress(True)
 print(im.Q(0.0))
+print(im.loglik(0.0))
