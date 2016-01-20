@@ -153,10 +153,12 @@ void ConditionedSFS<T>::compute_above(const PiecewiseExponentialRateFunction<T> 
         T y, t, c;
         tmp0.fill(eta.zero);
         c = eta.zero;
+        y = eta.zero;
         for (int j = 0; j < mcache.X0.cols(); ++j)
             for (int i = 0; i < mcache.X0.rows(); ++i)
             {
-                y = mcache.X0(i, j) * C0(i, j) - c;
+                T x = mcache.X0(i, j) * C0(i, j);
+                y = x - c;
                 t = tmp0(j) + y;
                 c = (t - tmp0(j)) - y;
                 tmp0(j) = t;
@@ -167,7 +169,8 @@ void ConditionedSFS<T>::compute_above(const PiecewiseExponentialRateFunction<T> 
         for (int j = 0; j < mcache.X2.cols(); ++j)
             for (int i = 0; i < mcache.X2.rows(); ++i)
             {
-                y = mcache.X2(i, j) * C2(i, j) - c;
+                T x = mcache.X2(i, j) * C2(i, j); 
+                y = x - c;
                 t = tmp2(j) + y;
                 c = (t - tmp2(j)) - y;
                 tmp2(j) = t;
@@ -306,35 +309,37 @@ void print_sfs(int n, const std::vector<double> &sfs)
 template class ConditionedSFS<double>;
 template class ConditionedSFS<adouble>;
 
-/*
-int csfs_main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     int n = atoi(argv[1]);
-    ConditionedSFS<adouble> csfs(n, 50);
     doProgress(true);
     // ConditionedSFS<double> csfs2(0);
     std::vector<std::vector<double> > params = {
         {0.2, 1.0, 2.0, 0.2, 1.0, 2.0, 0.2, 1.0, 2.0},
-        {1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0},
-        {1.0, 0.1, 0.1, 1.0, 0.1, 0.1, 1.0, 0.1, 0.1}
+        {10.0, 1.0, 2.0, 1.0, 1.0, 2.0, 1.0, 1.0, 2.0},
+        {0.01, 0.1, 0.1, 1.0, 0.1, 0.1, 1.0, 0.1, 0.1}
     };
     std::vector<double> hs;
-    for (int i = 0; i < 50; ++i)
+    for (int i = 0; i < 10; ++i)
         hs.push_back((double)i / 5.0);
+    ConditionedSFS<adouble> csfs(n, hs.size() - 1);
     std::vector<std::pair<int, int> > deriv;
     for (int i = 0; i < 2; ++i)
         for (int j = 0; j < 9; ++j)
             deriv.emplace_back(i, j);
     PiecewiseExponentialRateFunction<adouble> eta(params, deriv, hs);
-    // params[1][0] += 1e-8;
-    // PiecewiseExponentialRateFunction<double> eta2(params, deriv, hs);
+    params[0][0] += 1e-8;
+    PiecewiseExponentialRateFunction<double> eta2(params, {}, hs);
     std::vector<Matrix<adouble> > cs = csfs.compute(eta, 4 * 1e-4 * 50);
+    ConditionedSFS<double> csfs2(n, hs.size() - 1);
+    std::vector<Matrix<double> > cs2 = csfs2.compute(eta2, 4 * 1e-4 * 50);
     for (int h = 0; h < hs.size() - 1; ++h)
     {
-        std::cout << h;
-        std::cout << cs[h].template cast<double>() << std::endl << std::endl;
+        std::cout << h << std::endl;
+        // std::cout << cs[h].template cast<double>() << std::endl << std::endl;
+        std::cout << (cs2[h]- cs[h].template cast<double>()) * 1e8 << std::endl << std::endl;
         std::cout << cs[h].unaryExpr([](adouble x) { return x.derivatives()(0); }).template cast<double>()
             << std::endl << std::endl;
+        std::cout << "********************************************************************************\n";
     }
 }
-*/
