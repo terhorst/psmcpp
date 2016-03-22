@@ -12,7 +12,10 @@ struct eigensystem
         P_r(P.real()), Pinv_r(Pinv.real()), d_r(d.real())
     {
         if (Pinv.imag().cwiseAbs().maxCoeff() > 1e-10 or P.imag().cwiseAbs().maxCoeff() > 1e-10)
-            throw std::runtime_error("Non-negligible imaginary part of eigendecomposition");
+        {
+            std::cout << "imag parts: Pinv=" << Pinv.imag().cwiseAbs().maxCoeff() << " P=" << P.imag().cwiseAbs().maxCoeff() << std::endl;
+            // throw std::runtime_error("Non-negligible imaginary part of eigendecomposition");
+        }
     }
 };
 
@@ -47,20 +50,20 @@ class TransitionBundle
                 }
             }
             eigensystem eig = eigensystems.at(key);
-            tmp = Matrix<double>::Zero(M, M);
+            Eigen::MatrixXcd ctmp = Eigen::MatrixXcd::Zero(M, M);
             for (int a = 0; a < M; ++a)
                 for (int b = 0; b < M; ++b)
-                    tmp(a, b) = (a == b) ? (double)span * std::pow(eig.d_r(a), span - 1) : 
-                        (std::pow(eig.d_r(a), span) - std::pow(eig.d_r(b), span)) / (eig.d_r(a) - eig.d_r(b));
+                    ctmp(a, b) = (a == b) ? (double)span * std::pow(eig.d(a), span - 1) : 
+                        (std::pow(eig.d(a), span) - std::pow(eig.d(b), span)) / (eig.d(a) - eig.d(b));
 #pragma omp critical(spanQinsert)
-            span_Qs.emplace(*it, tmp);
+            span_Qs.emplace(*it, ctmp);
         }
     }
     Matrix<adouble> T;
     Matrix<double> Td;
     Eigen::VectorXcd d;
     Eigen::MatrixXcd P, Pinv;
-    std::map<std::pair<int, block_key>, Matrix<double> > span_Qs;
+    std::map<std::pair<int, block_key>, Matrix<std::complex<double> > > span_Qs;
     std::map<block_key, eigensystem> eigensystems;
 
     private:

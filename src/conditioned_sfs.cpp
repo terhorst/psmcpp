@@ -158,11 +158,13 @@ template <typename T>
 void ConditionedSFS<T>::compute_above(const PiecewiseExponentialRateFunction<T> &eta)
 {
     DEBUG("compute above");
+    DEBUG("double integral above");
 #pragma omp parallel for
     for (int j = 2; j < n + 3; ++j)
         eta.tjj_double_integral_above(n, j, C_above);
     Matrix<T> tmp;
     Timer t1;
+    DEBUG("matrix multiplies");
 #pragma omp parallel for
     for (int h = 0; h < H; ++h)
     {
@@ -191,6 +193,7 @@ void ConditionedSFS<T>::compute_above(const PiecewiseExponentialRateFunction<T> 
         csfs_above[h].block(2, 0, 1, n) = tmp2.transpose().lazyProduct(Uinv_mp2);
         check_nan(csfs_above[h]);
     }
+    DEBUG("compute above done");
 }
 
 template <typename T>
