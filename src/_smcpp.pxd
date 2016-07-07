@@ -54,12 +54,10 @@ cdef extern from "inference_manager.h":
         Matrix[adouble]& getTransition()
         Matrix[adouble]& getEmission()
         map[block_key, Vector[adouble] ]& getEmissionProbs()
-    Matrix[adouble] sfs_cython(const int, const ParameterVector, const vector[double], 
-            const double, const double, bool) nogil
+    Matrix[adouble] sfs_cython(int, const ParameterVector&, const vector[double], double, double) nogil
 
 
 cdef extern from "piecewise_exponential_rate_function.h":
     cdef cppclass PiecewiseExponentialRateFunction[T]:
         PiecewiseExponentialRateFunction(const ParameterVector, const vector[double], const vector[double])
         T R(T x)
-        T random_time(const double, const double, const long long)

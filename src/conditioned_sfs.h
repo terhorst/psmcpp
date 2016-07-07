@@ -45,8 +45,8 @@ class ConditionedSFS : public ConditionedSFSBase
     // private:
     // Methods
     void construct_ad_vars();
-    std::vector<Matrix<T> > compute_below(const PiecewiseExponentialRateFunction<T> &);
-    std::vector<Matrix<T> > compute_above(const PiecewiseExponentialRateFunction<T> &);
+    void compute_below(const PiecewiseExponentialRateFunction<T> &);
+    void compute_above(const PiecewiseExponentialRateFunction<T> &);
 
     // Variables
     const int n, H;
