@@ -122,8 +122,10 @@ cdef class _PyInferenceManager:
     cdef vector[int] _Ls
     cdef InferenceManager* _im
     cdef vector[int*] _obs_ptrs
+    cdef vector[int] _stitchpoints
+    cdef object _rho_vals
 
-    def __my_cinit__(self, observations, hidden_states, im_id=None):
+    def __my_cinit__(self, observations, hidden_states, stitchpoints, im_id=None):
         self._im_id = im_id
         self.seed = 1
         cdef int[:, ::1] vob
@@ -142,10 +144,16 @@ cdef class _PyInferenceManager:
         self._num_hmms = len(observations)
         self._hs = hidden_states
         self._Ls = Ls
+        self._stitchpoints = stitchpoints
+        self._rho_vals = np.zeros(len(stitchpoints) - 1)
         _check_abort()
 
     def __dealloc__(self):
         del self._im
+
+    property rho_vals:
+        def __get__(self):
+            return self._rho_vals
 
     property folded:
         def __get__(self):
@@ -294,12 +302,15 @@ cdef class _PyInferenceManager:
 cdef class PyOnePopInferenceManager(_PyInferenceManager):
     cdef int _distinguished_index
 
-    def __cinit__(self, int n, observations, hidden_states, distinguished_index, im_id):
+    def __cinit__(self, int n, observations, hidden_states, distinguished_index, 
+            stitchpoints, im_id):
         # This is needed because cinit cannot be inherited
-        self.__my_cinit__(observations, hidden_states, im_id)
+        self.__my_cinit__(observations, hidden_states, stitchpoints, im_id)
         self._distinguished_index = distinguished_index
+        cdef double[:] vrho = self._rho_vals
         with nogil:
-            self._im = new OnePopInferenceManager(n, self._Ls, self._obs_ptrs, self._hs, False)
+            self._im = new OnePopInferenceManager(n, self._Ls, self._obs_ptrs, self._hs, 
+                    &vrho[0], self._stitchpoints, False)
 
     @targets("model update")
     def update(self, message, *args, **kwargs):
@@ -314,10 +325,11 @@ cdef class PyTwoPopInferenceManager(_PyInferenceManager):
     cdef TwoPopInferenceManager* _im2
     cdef object _di
 
-    def __cinit__(self, int n1, int n2, int a1, int a2, observations, hidden_states, im_id):
+    def __cinit__(self, int n1, int n2, int a1, int a2, observations, hidden_states, 
+            stitchpoints, im_id):
         # This is needed because cinit cannot be inherited
         assert a1 + a2 == 2
-        self.__my_cinit__(observations, hidden_states, im_id)
+        self.__my_cinit__(observations, hidden_states, stitchpoints, im_id)
         if a1 == 2:
             self._di = 0
         elif a2 == 2:
@@ -325,8 +337,10 @@ cdef class PyTwoPopInferenceManager(_PyInferenceManager):
         else:
             # Apart case
             self._di = None
+        cdef double[:] vrho = self._rho_vals
         with nogil:
-            self._im2 = new TwoPopInferenceManager(n1, n2, a1, a2, self._Ls, self._obs_ptrs, self._hs, False)
+            self._im2 = new TwoPopInferenceManager(n1, n2, a1, a2, self._Ls, self._obs_ptrs, 
+                    self._hs, &vrho[0], self._stitchpoints, False)
             self._im = self._im2
 
     @targets("model update")

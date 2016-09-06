@@ -29,21 +29,23 @@ class TransitionBundle
 {
     public:
     TransitionBundle(
-            const std::set<std::pair<int, block_key> > &targets_s,
+            const std::set<std::tuple<int, block_key, double* const> > &targets_s,
             const std::map<block_key, Vector<adouble> >* emission_probs) : 
         targets(targets_s.begin(), targets_s.end()),
         emission_probs(emission_probs) {}
 
-    void update(const Matrix<adouble> &new_T);
-    Matrix<adouble> T;
-    Matrix<double> Td;
+    void update(const std::map<double, Matrix<adouble>> &new_map);
+    //void update(const Matrix<adouble> &new_T);
+    //Matrix<adouble> T;
+    //Matrix<double> Td;
     Eigen::VectorXcd d;
     Eigen::MatrixXcd P, Pinv;
-    std::map<std::pair<int, block_key>, Matrix<std::complex<double> > > span_Qs;
-    std::map<block_key, eigensystem> eigensystems;
+    std::map<std::tuple<int, block_key, double*>, Matrix<std::complex<double> > > span_Qs;
+    std::map<std::pair<block_key, double>, eigensystem> eigensystems;
+    std::map<double, Matrix<adouble>> transitions;
 
     private:
-    const std::vector<std::pair<int, block_key> > targets;
+    const std::vector<std::tuple<int, block_key, double* const> > targets;
     const std::map<block_key, Vector<adouble> >* emission_probs;
 };
 

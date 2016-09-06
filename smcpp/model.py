@@ -2,8 +2,13 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import ad.admath
 
+<<<<<<< 27d2868441f674abf0dfa5d8c5da62804b9444af
 from . import spline, logging, util
 from .observe import Observable, Observer, targets
+=======
+from . import spline, logging#, util
+from .observe import Observable
+>>>>>>> added stitchpoints in C++
 
 
 logger = logging.getLogger(__name__)

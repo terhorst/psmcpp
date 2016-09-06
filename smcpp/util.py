@@ -7,7 +7,11 @@ import multiprocessing
 import os
 from future.moves.itertools import zip_longest
 
+<<<<<<< 27d2868441f674abf0dfa5d8c5da62804b9444af
 from . import logging, _smcpp
+=======
+from . import logging, _smcpp#, model
+>>>>>>> added stitchpoints in C++
 
 logger = logging.getLogger(__name__)
 
