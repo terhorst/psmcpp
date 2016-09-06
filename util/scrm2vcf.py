@@ -58,10 +58,11 @@ if __name__ == "__main__":
     # Iterate over scrm output
     print("Calling scrm with args: %s" % str(scrm_args), file=sys.stderr)
     it = scrm(*scrm_args, _iter=True)
+    #it = scrm([4,2,"-t",5],_iter=True)
     line = next(it)
     while not line.startswith("position"):
         line = next(it)
-    next(it)
+    line = next(it)
     for line in it:
         ary = line.strip().split()
         pos, time = ary[:2]

@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import ad.admath
 
-from . import spline, logging, util
+from . import spline, logging#, util
 from .observe import Observable
 
 

@@ -22,6 +22,8 @@ InferenceManager::InferenceManager(
         const std::vector<int> obs_lengths,
         const std::vector<int*> observations,
         const std::vector<double> hidden_states,
+        const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+        std::vector<double*> rho_vals, //Length one less than stitchpoints. (rho_0, rho_1, ..., rho_n-1)
         ConditionedSFS<adouble> *csfs) :
     saveGamma(false), folded(false),
     hidden_states(hidden_states),
@@ -29,6 +31,9 @@ InferenceManager::InferenceManager(
     sfs_dim(sfs_dim),
     M(hidden_states.size() - 1),
     obs(map_obs(observations, obs_lengths)),
+    stitchpoints(stitchpoints),
+    rho_vals(rho_vals),
+    stitch_to_block(process_stitchpoints()),
     csfs(csfs),
     hmms(obs.size()),
     pi(M),
@@ -44,11 +49,12 @@ InferenceManager::InferenceManager(
     transition = Matrix<adouble>::Zero(M, M);
     transition.setZero();
     InferenceBundle *ibp = &ib;
+    std::map<double, Matrix<adouble>> *tm_ptr = &transition_map;
 #pragma omp parallel for
     for (unsigned int i = 0; i < obs.size(); ++i)
     {
         DEBUG << "creating HMM";
-        hmms[i].reset(new HMM(i, this->obs[i], ibp));
+        hmms[i].reset(new HMM(i, this->obs[i], ibp, rho_vals, stitch_to_block, tm_ptr));
     }
 
     // Collect all the block keys for recomputation later
@@ -216,24 +222,75 @@ void InferenceManager::do_dirty_work()
     if (dirty.theta or dirty.eta)
         recompute_emission_probs();
     if (dirty.eta or dirty.rho)
-        transition = compute_transition(*eta, rho);
+        recompute_transitions(rho_vals);
+        //transition = compute_transition(*eta, rho);
     if (dirty.theta or dirty.eta or dirty.rho)
-        tb.update(transition);
+        tb.update(transition_map);
+        //tb.update(transition);
     // restore pristine status
     dirty = {false, false, false};
 }
 
-
-std::set<std::pair<int, block_key> > InferenceManager::fill_targets()
+void InferenceManager::recompute_transitions(std::vector<double*> rhos)
 {
-    std::set<std::pair<int, block_key> > ret;
+    transition_map.clear();
+    for(auto rho: rhos)
+    {
+        transition_map.emplace(*rho, compute_transition(*eta, *rho));
+    }
+}
+
+// Finds block index of each stitchpoint
+std::vector<int> InferenceManager::process_stitchpoints()
+{
+    //TOFIX: pretty wasteful and should really change obs to break up spans in which stitchpoints occur
+    Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> ob;
+    ob = obs.at(0);
+    int current = 0;
+    int prev = 0;
+    std::vector<int>::const_iterator it = stitchpoints.begin();
+    std::vector<int> ret;
+    for (int i = 0; i < ob.rows(); ++i)
+    {
+        current += ob(i, 0);
+        if(current > *it && prev <= *it)
+        {
+            ret.push_back(i);
+            ++it;
+        }
+        prev = current;
+    }
+    ret.push_back(ob.rows());
+    return ret;
+}
+
+double * InferenceManager::map_to_rho(int i)
+{
+    for(size_t bk = 0; bk < stitch_to_block.size() - 1; bk++)
+    {
+        if(stitch_to_block[bk] <= i && stitch_to_block[bk+1] > i){
+            return rho_vals[i];
+        }
+    }
+
+    throw std::runtime_error("Should map to one of the rho values");
+}
+
+// Returns targets over span, block_key, rho addresses
+std::set<std::tuple<int, block_key, double*> > InferenceManager::fill_targets()
+{
+    std::set<std::tuple<int, block_key, double*> > ret;
     for (auto ob : obs)
     {
         const int q = ob.cols() - 1;
         for (int i = 0; i < ob.rows(); ++i)
         {
             if (ob(i, 0) > 1)
-                ret.insert({ob(i, 0), block_key(ob.row(i).tail(q).transpose())});
+            {
+                std::tuple<int, block_key, double*> temp = \
+                    std::make_tuple(ob(i, 0), block_key(ob.row(i).tail(q).transpose()), map_to_rho(i));
+                ret.insert(temp);
+            }
         }
     }
     return ret;
@@ -418,11 +475,14 @@ OnePopInferenceManager::OnePopInferenceManager(
             const int n,
             const std::vector<int> obs_lengths,
             const std::vector<int*> observations,
-            const std::vector<double> hidden_states) :
+            const std::vector<double> hidden_states,
+        const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+        std::vector<double*> rho_vals) :
         NPopInferenceManager(
                 FixedVector<int, 1>::Constant(n),
                 FixedVector<int, 1>::Constant(2),
                 obs_lengths, observations, hidden_states, 
+                stitchpoints, rho_vals,
                 new OnePopConditionedSFS<adouble>(n)) {}
 
 TwoPopInferenceManager::TwoPopInferenceManager(
@@ -430,11 +490,14 @@ TwoPopInferenceManager::TwoPopInferenceManager(
             const int a1, const int a2,
             const std::vector<int> obs_lengths,
             const std::vector<int*> observations,
-            const std::vector<double> hidden_states) :
+            const std::vector<double> hidden_states,
+            const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+            std::vector<double*> rho_vals) :
         NPopInferenceManager(
                 (FixedVector<int, 2>() << n1, n2).finished(),
                 (FixedVector<int, 2>() << a1, a2).finished(),
-                obs_lengths, observations, hidden_states, 
+                obs_lengths, observations, hidden_states,
+                stitchpoints, rho_vals 
                 new JointCSFS<adouble>(n1, n2, a1, a2, hidden_states)),
         a1(a1), a2(a2)
 {

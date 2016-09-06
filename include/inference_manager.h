@@ -18,6 +18,8 @@ class InferenceManager
             const std::vector<int>, 
             const std::vector<int*>,
             const std::vector<double>,
+            const std::vector<int>,
+            const std::vector<double*>,
             ConditionedSFS<adouble> *csfs);
     virtual ~InferenceManager() = default;
 
@@ -50,7 +52,11 @@ class InferenceManager
     void recompute_initial_distribution();
     std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > 
         map_obs(const std::vector<int*>&, const std::vector<int>&);
-    std::set<std::pair<int, block_key> > fill_targets();
+    //std::set<std::pair<int, block_key> > fill_targets();
+    std::set<std::tuple<int, block_key, double*> > fill_targets();
+    double * map_to_rho(int i);
+    std::vector<int> process_stitchpoints();
+    void recompute_transitions(std::vector<double*>);
     void populate_emission_probs();
     void do_dirty_work();
 
@@ -66,9 +72,14 @@ class InferenceManager
     Vector<adouble> pi;
     Matrix<adouble> transition, emission;
     std::vector<block_key> bpm_keys;
-    const std::set<std::pair<int, block_key> > targets;
+    //const std::set<std::pair<int, block_key> > targets;
+    std::set<std::tuple<int, block_key, double*> > targets;
     TransitionBundle tb;
     std::vector<Matrix<adouble> > sfss;
+    const std::vector<int> stitchpoints;
+    std::vector<double*> rho_vals;
+    const std::vector<int> stitch_to_block;
+    std::map<double, Matrix<adouble>> transition_map;
 
     InferenceBundle ib;
     struct { bool theta, rho, eta; } dirty;
@@ -86,10 +97,12 @@ class NPopInferenceManager : public InferenceManager
             const std::vector<int> obs_lengths,
             const std::vector<int*> observations,
             const std::vector<double> hidden_states,
+            const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+            std::vector<double*> rho_vals,
             ConditionedSFS<adouble> *csfs) :
         InferenceManager(P,
                 (na.tail(na.size() - 1).array() + 1).prod() * (n.array() + 1).prod(),
-                obs_lengths, observations, hidden_states, csfs), n(n), na(na),
+                obs_lengths, observations, hidden_states, stitchpoints, rho_vals, csfs), n(n), na(na),
                 tensordims(make_tensordims()), bins(construct_bins())
     {}
 
@@ -119,7 +132,9 @@ class OnePopInferenceManager final : public NPopInferenceManager<1>
             const int n,
             const std::vector<int> obs_lengths,
             const std::vector<int*> observations,
-            const std::vector<double> hidden_states);
+            const std::vector<double> hidden_states,
+        const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+        std::vector<double*> rho_vals);
 };
 
 class TwoPopInferenceManager : public NPopInferenceManager<2>
@@ -130,7 +145,9 @@ class TwoPopInferenceManager : public NPopInferenceManager<2>
             const int a1, const int a2,
             const std::vector<int> obs_lengths,
             const std::vector<int*> observations,
-            const std::vector<double> hidden_states);
+            const std::vector<double> hidden_states,
+        const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
+        std::vector<double*> rho_vals);
                 
     void setParams(const ParameterVector &params1, const ParameterVector &params2, const double split);
 

@@ -232,6 +232,6 @@ def parallel_empirical_transition(*args):
     return np.sum(res, axis=0)
 
 if __name__ == "__main__":
-    L = 1000000
-    data = simulate(50, 10000.0, 1e-8, 1e-8, L, ['-n', 1, 1])
+    L = 10
+    data = simulate(5, 2.0, 1e-8, 1e-8, L, ['-n', 1, 1])
     hmmd = hmm_data_format(data, (0, 1))
