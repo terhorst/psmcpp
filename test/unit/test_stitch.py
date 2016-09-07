@@ -12,7 +12,10 @@ def test_stitch():
                [200000, 0, 0, n - 2], [1, 1, n - 4, n - 2]]
     fakeobs *= 20
     obs = np.array(fakeobs, dtype=np.int32)
-    stitchpoints = np.concatenate([[0.], np.cumsum(obs[:, 0])[::10], [obs[:, 0].sum()]])
+    stitchpoints = np.concatenate([[0.], np.cumsum(obs[:, 0])[::10], [obs[:, 0].sum()]]).astype(np.int32)
+    print(obs)
+    print(hs)
+    print(stitchpoints)
     im = smcpp._smcpp.PyOnePopInferenceManager(n - 2, [obs], hs, 0, stitchpoints, None)
     print(im.rho_vals)
     im.model = model
