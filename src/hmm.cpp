@@ -30,7 +30,7 @@ double * HMM::map_to_rho(int i)
     for(size_t bk = 0; bk < stitch_to_block.size() - 1; bk++)
     {
         if(stitch_to_block[bk] <= i && stitch_to_block[bk+1] > i){
-            return rho_vals[i];
+            return rho_vals[bk];
         }
     }
     throw std::runtime_error("Should map to one of the rho values");
