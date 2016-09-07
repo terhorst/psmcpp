@@ -60,7 +60,7 @@ cdef extern from "inference_manager.h":
         OnePopInferenceManager(const int, const vector[int],
                 const vector[int*], const vector[double], 
                 double* const, const vector[int],
-                const bool) except +
+                const bool)
     cdef cppclass TwoPopInferenceManager(InferenceManager) nogil:
         TwoPopInferenceManager(const int, const int, const int, const int,
                 const vector[int], const vector[int*], const vector[double], 
