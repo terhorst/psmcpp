@@ -25,16 +25,12 @@ InferenceManager::InferenceManager(
         double* const rho_vals,
         const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
         ConditionedSFS<adouble> *csfs) :
-    Stitchable(rho_vals, stitchpoints),
     saveGamma(false), folded(false),
     hidden_states(hidden_states),
     npop(npop),
     sfs_dim(sfs_dim),
     M(hidden_states.size() - 1),
     obs(map_obs(observations, obs_lengths)),
-    stitchpoints(stitchpoints),
-    rho_vals(rho_vals),
-    stitch_to_block(process_stitchpoints()),
     csfs(csfs),
     hmms(obs.size()),
     pi(M),
@@ -42,7 +38,8 @@ InferenceManager::InferenceManager(
     tb(targets, &emission_probs),
     ib{&pi, &tb, &emission_probs, &saveGamma},
     dirty({true, true, true}),
-    eta(defaultEta(hidden_states))
+    eta(defaultEta(hidden_states)),
+    Stitchable(rho_vals, process_stitchpoints())
 {
     if (*std::min_element(hidden_states.begin(), hidden_states.end()) != 0.)
         throw std::runtime_error("first hidden interval should be [0, <something>)");
