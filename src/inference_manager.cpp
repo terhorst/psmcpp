@@ -25,21 +25,22 @@ InferenceManager::InferenceManager(
         double* const rho_vals,
         const std::vector<int> stitchpoints, // (0, stitch_1, stitch_2 ...stitch_n = L) --- stitchpoints are indexed by base position 
         ConditionedSFS<adouble> *csfs) :
+    MapObservations(npop, observations, obs_lengths),
+    Stitchable(rho_vals, process_stitchpoints(stitchpoints)),
     saveGamma(false), folded(false),
     hidden_states(hidden_states),
     npop(npop),
     sfs_dim(sfs_dim),
     M(hidden_states.size() - 1),
-    obs(map_obs(observations, obs_lengths)),
     csfs(csfs),
     hmms(obs.size()),
     pi(M),
     targets(fill_targets()),
     tb(targets, &emission_probs),
+    stitchpoints(stitchpoints),
     ib{&pi, &tb, &emission_probs, &saveGamma},
     dirty({true, true, true}),
-    eta(defaultEta(hidden_states)),
-    Stitchable(rho_vals, process_stitchpoints())
+    eta(defaultEta(hidden_states))
 {
     if (*std::min_element(hidden_states.begin(), hidden_states.end()) != 0.)
         throw std::runtime_error("first hidden interval should be [0, <something>)");
@@ -181,17 +182,6 @@ std::vector<double> InferenceManager::loglik(void)
     return parallel_select<double>([] (hmmptr &hmm) { return hmm->loglik(); });
 }
 
-// Begin stuff for NPop inference manager
-std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > 
-    InferenceManager::map_obs(const std::vector<int*> &observations, const std::vector<int> &obs_lengths)
-{
-    std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > ret;
-    for (unsigned int i = 0; i < observations.size(); ++i)
-        ret.push_back(Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>::Map(
-                    observations[i], obs_lengths[i], 1 + 3 * npop));
-    return ret;
-}
-
 void InferenceManager::populate_emission_probs()
 {
     Vector<adouble> tmp;
@@ -242,7 +232,7 @@ void InferenceManager::recompute_transitions()
 }
 
 // Finds block index of each stitchpoint
-std::vector<int> InferenceManager::process_stitchpoints()
+std::vector<int> InferenceManager::process_stitchpoints(const std::vector<int> stitchpoints)
 {
     //TOFIX: pretty wasteful and should really change obs to break up spans in which stitchpoints occur
     Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> ob;

@@ -111,7 +111,7 @@ void HMM::Estep(bool fbOnly)
         //TODO: grab rho again and change the name of key
         B = ib->emission_probs->at(bk).template cast<double>().asDiagonal();
 
-        const double* rho = map_to_rho(ell);
+        double* const rho = map_to_rho(ell);
         std::pair<block_key, double> key = std::make_pair(bk, *rho);
         if (span > 1 and tb->eigensystems.count(key) > 0)
         {
@@ -121,7 +121,7 @@ void HMM::Estep(bool fbOnly)
                 Q = es.Pinv * 
                     (alpha_hat.col(ell - 1) * beta.transpose()).template cast<std::complex<double> >() * 
                     es.P;
-                Q = Q.cwiseProduct(tb->span_Qs.at(std::make_tuple(span, key.first, &key.second)));
+                Q = Q.cwiseProduct(tb->span_Qs.at(std::make_tuple(span, key.first, rho)));
                 v = (es.P * es.d_scaled.asDiagonal() * Q * es.Pinv).diagonal().real() / c(ell);
                 xisum += ((es.P * Q * es.Pinv).real() * B) / (c(ell) * es.scale);
                 beta = (es.Pinv.transpose() * (es.d_scaled.array().pow(span).matrix().asDiagonal() * 
@@ -132,7 +132,7 @@ void HMM::Estep(bool fbOnly)
                 Q_r = es.Pinv_r * 
                     (alpha_hat.col(ell - 1) * beta.transpose()) * 
                     es.P_r;
-                Q_r = Q_r.cwiseProduct(tb->span_Qs.at(std::make_tuple(span, key.first, &key.second)).real());
+                Q_r = Q_r.cwiseProduct(tb->span_Qs.at(std::make_tuple(span, key.first, rho)).real());
                 v = (es.P_r * es.d_r_scaled.asDiagonal() * Q_r * es.Pinv_r).diagonal() / c(ell);
                 xisum += ((es.P_r * Q_r * es.Pinv_r) * B) / (c(ell) * es.scale);
                 beta = (es.Pinv_r.transpose() * (es.d_r_scaled.array().pow(span).matrix().asDiagonal() * 
