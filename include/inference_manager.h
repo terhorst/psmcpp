@@ -10,7 +10,29 @@
 #include "stitchable.h"
 #include "block_key.h"
 
-class InferenceManager : public Stitchable
+class MapObservations
+{
+    public:
+    MapObservations(const int npop,
+            const std::vector<int*>& observations, const std::vector<int>& obs_lengths) : 
+        obs(map_obs(npop, observations, obs_lengths)) {}
+
+    protected:    
+    const std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > obs;
+
+    private:
+    std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > 
+        map_obs(const int npop, const std::vector<int*> &observations, const std::vector<int> &obs_lengths)
+    {
+        std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > ret;
+        for (unsigned int i = 0; i < observations.size(); ++i)
+            ret.push_back(Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>::Map(
+                        observations[i], obs_lengths[i], 1 + 3 * npop));
+        return ret;
+    }
+};
+
+class InferenceManager : public MapObservations, public Stitchable
 {
     public:
     InferenceManager(
@@ -51,11 +73,9 @@ class InferenceManager : public Stitchable
     void parallel_do(std::function<void(hmmptr &)>);
     template <typename T> std::vector<T> parallel_select(std::function<T(hmmptr &)>);
     void recompute_initial_distribution();
-    std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > 
-        map_obs(const std::vector<int*>&, const std::vector<int>&);
     //std::set<std::pair<int, block_key> > fill_targets();
     std::set<std::tuple<int, block_key, double* const> > fill_targets();
-    std::vector<int> process_stitchpoints();
+    std::vector<int> process_stitchpoints(const std::vector<int>);
     void recompute_transitions();
     void populate_emission_probs();
     void do_dirty_work();
@@ -65,7 +85,6 @@ class InferenceManager : public Stitchable
 
     // Other members
     const int npop, sfs_dim, M;
-    std::vector<Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> > obs;
     std::unique_ptr<ConditionedSFS<adouble> > csfs;
     double theta, rho;
     std::vector<hmmptr> hmms;

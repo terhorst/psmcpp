@@ -13,13 +13,14 @@ def test_stitch():
     fakeobs *= 20
     obs = np.array(fakeobs, dtype=np.int32)
     stitchpoints = np.concatenate([[0.], np.cumsum(obs[:, 0])[::10], [obs[:, 0].sum()]]).astype(np.int32)
-    print(obs)
-    print(hs)
-    print(stitchpoints)
     im = smcpp._smcpp.PyOnePopInferenceManager(n - 2, [obs], hs, 0, stitchpoints, None)
-    print(im.rho_vals)
     im.model = model
     im.theta = 0.0025000000000000001
-    im.rho = 0.0031206103977654887  # not sure what this does anymore
-    im.E_step()
-    im.loglik()
+    im.rho = 0.0025
+
+    for _ in range(3):
+        im.rho_vals[:] = 10 ** np.random.uniform(-2, -4, size=len(im.rho_vals))
+        im.rho = im.rho  # this is needed to trigger the dirty flag and recompute transitions.
+        im.E_step()
+        print(im.rho_vals)
+        print(im.loglik())
