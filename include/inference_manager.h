@@ -55,7 +55,6 @@ class InferenceManager : public Stitchable
         map_obs(const std::vector<int*>&, const std::vector<int>&);
     //std::set<std::pair<int, block_key> > fill_targets();
     std::set<std::tuple<int, block_key, double* const> > fill_targets();
-    const double* map_to_rho(int i);
     std::vector<int> process_stitchpoints();
     void recompute_transitions();
     void populate_emission_probs();
@@ -77,9 +76,7 @@ class InferenceManager : public Stitchable
     std::set<std::tuple<int, block_key, double* const> > targets;
     TransitionBundle tb;
     std::vector<Matrix<adouble> > sfss;
-    double* const rho_vals;
     const std::vector<int> stitchpoints;
-    const std::vector<int> stitch_to_block;
     std::map<double, Matrix<adouble>> transition_map;
 
     InferenceBundle ib;

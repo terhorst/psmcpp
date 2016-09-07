@@ -26,7 +26,6 @@ class HMM : public Stitchable
     // Methods
     void domain_error(double);
     inline block_key ob_key(int i) { return block_key(obs.row(i).transpose().tail(obs.cols() - 1)); }
-    double* map_to_rho(const int i);
 
     // Instance variables
     const int hmm_num;
