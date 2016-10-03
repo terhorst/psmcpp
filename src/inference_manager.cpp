@@ -225,9 +225,12 @@ void InferenceManager::recompute_transitions()
     transition_map.clear();
     for (size_t i = 0; i < stitchpoints.size() - 1; ++i)
     {
-        double rho = *(rho_vals + i);
-        if (transition_map.count(rho) == 0)
-            transition_map.emplace(rho, compute_transition(*eta, rho));
+        // std::cout << "printing dirty" << std::endl;
+        // std::cout << "rho index: " << i << std::endl;
+        double rhov = *(rho_vals + i);
+        // std::cout << "rho value: " << rhov << std::endl;
+        if (transition_map.count(rhov) == 0)
+            transition_map.emplace(rhov, compute_transition(*eta, rhov));
     }
 }
 
@@ -258,15 +261,22 @@ std::vector<int> InferenceManager::process_stitchpoints(const std::vector<int> s
 // Returns targets over span, block_key, rho addresses
 std::set<std::tuple<int, block_key, double* const> > InferenceManager::fill_targets()
 {
+    //std::cout << "filling targets" << std::endl;
     std::set<std::tuple<int, block_key, double* const> > ret;
     for (auto ob : obs)
     {
         const int q = ob.cols() - 1;
+        //std::cout << "num obs rows:" << ob.rows() << std::endl;
         for (int i = 0; i < ob.rows(); ++i)
         {
             if (ob(i, 0) > 1)
             {
                 ret.emplace(ob(i, 0), block_key(ob.row(i).tail(q).transpose()), const_cast<double* const>(map_to_rho(i)));
+                // if (*(map_to_rho(i)) != 0){
+                //     std::cout << "obs row: " << i << std::endl;
+                //     std::cout << "mapped_rho: " << map_to_rho(i) << std::endl;
+                //     std::cout << "mapped_rho: " << *(map_to_rho(i)) << std::endl;
+                // }
             }
         }
     }

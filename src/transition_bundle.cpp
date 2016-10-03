@@ -41,6 +41,7 @@
 
 void TransitionBundle::update(const std::map<double, Matrix<adouble>> &new_map)
 {
+    //std::cout << "printing tb" << std::endl;
     const int M = new_map.begin()->second.rows();
     transitions = new_map;
     eigensystems.clear();
@@ -53,7 +54,11 @@ void TransitionBundle::update(const std::map<double, Matrix<adouble>> &new_map)
         std::pair<block_key, double> key = std::make_pair(bk, rho);
         if (this->eigensystems.count(key) == 0)
         {
+            // std::cout << "printing rho" << std::endl;
+            // std::cout << "rho: "<< rho << std::endl;
             Matrix<double> Td = transitions.at(rho).template cast<double>();
+            // std::cout << "printing emissions" << std::endl;
+            // std::cout << "bk: "<< bk << std::endl;
             tmp = this->emission_probs->at(bk).template cast<double>().asDiagonal() * Td.transpose();
             Eigen::EigenSolver<Matrix<double> > es(tmp);
             this->eigensystems.emplace(key, es);

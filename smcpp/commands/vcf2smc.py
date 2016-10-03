@@ -4,6 +4,7 @@ import itertools as it
 from logging import getLogger
 import numpy as np
 import sys
+import pysam
 from pysam import VariantFile, TabixFile
 import json
 from collections import Counter, namedtuple
@@ -14,7 +15,10 @@ from ..logging import setup_logging
 from ..util import optional_gzip, RepeatingWriter
 from ..version import __version__
 
-
+print 'HELLO!!!'
+print pysam.__file__
+#print VariantFile.__file__
+#print TabixFile.__file__
 SampleList = namedtuple("SampleList", "pid samples")
 
 
@@ -143,8 +147,8 @@ def main(args):
                 a = [0] * len(a)
                 b = [0] * len(b)
             return list(sum(zip(a, b, nb), tuple()))
-
-        region_iterator = vcf.fetch(contig=args.contig)
+        region_iterator = vcf.fetch()
+        #region_iterator = vcf.fetch(contig=args.contig, until_eof=True)
         contig_length = vcf.header.contigs[args.contig].length
         if args.mask:
             mask_iterator = TabixFile(args.mask).fetch(reference=args.contig)
