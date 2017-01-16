@@ -1,9 +1,12 @@
 from __future__ import print_function, division
 import numpy as np
 import smcpp._smcpp, smcpp.model, smcpp.spline, smcpp.util, smcpp.estimation_tools
+from smcpp.logging import setup_logging, getLogger
 import scipy.optimize
 import sys
 import os.path
+
+logger = getLogger(__name__)
 
 # Jonathan's test for random data
 def test_stitch():
@@ -29,6 +32,47 @@ def test_stitch():
         im.E_step()
         print(im.rho_vals)
         print(im.loglik())
+
+# Check match to the rjmcmc code
+def test_likelihood():
+    setup_logging(2, os.path.join(".", ".debug.txt"))
+
+    #hs = np.concatenate([[0.0], np.logspace(-3, 1, 30), [np.inf]])
+    hs = np.concatenate([[0.0], np.logspace(-3, 1, 3), [np.inf]])
+
+    ## Initialize model
+    demo = smcpp.util.human
+    a = demo['a']
+    b = demo['b']
+    s = demo['s']
+    model = smcpp.model.OldStyleModel(a,b,s)
+
+    n = 30
+    fakeobs = [[1, -1, 0, 0], [1, 1, 0, 0], [10, 0, 0, 0], [10, -1, 0, 0],
+               [200000, 0, 0, n - 2], [1, 1, n - 4, n - 2]]
+    # fakeobs *= 20
+    fakeobs *= 3
+    obs = np.array(fakeobs, dtype=np.int32)
+
+    ## Init rho map -- vector of rho values at each SNP (length = # of snps)
+    # obs = [obs[0][1:]]
+    # ob = obs[0]
+    # snp_blocks, snp_pos = find_SNPs(ob)
+    # background = 0.0044 * ((snp_pos < 47500) | (snp_pos >= 52500))
+    # hotspot = 0.044 * ((snp_pos >= 47500) & (snp_pos < 52500))
+    # rho_map = background + hotspot
+
+    stitchpoints = np.concatenate([[0.], np.cumsum(obs[:, 0])[::10], [obs[:, 0].sum()]]).astype(np.int32)
+    im = smcpp._smcpp.PyOnePopInferenceManager(n - 2, [obs], hs, 0, stitchpoints, None)
+    im.model = model
+    im.theta = 0.0025000000000000001
+    im.rho = 0.0025
+
+    im.rho_vals[:] = [0.0044] * len(im.rho_vals)
+    im.rho = im.rho  # this is needed to trigger the dirty flag and recompute transitions.
+    im.E_step()
+    print(im.rho_vals)
+    print(im.loglik())
 
 
 class StitchOptimizer():
@@ -159,7 +203,8 @@ def compute_modes(replicates):
 
 
 if __name__ == "__main__":
-    save_likelihood_surface("tenx_5k_surfaces.txt", "tenx_5k_modes")
+    #save_likelihood_surface("tenx_5k_surfaces.txt", "tenx_5k_modes")
+    test_likelihood()
     #compute_modes(20)
     # fname = "composite_ll_variance.txt"
     # if os.path.isfile(fname):

@@ -70,17 +70,35 @@ void HMM::Estep(bool fbOnly)
         //grab rho here to get the correct eigensystem
         const double *rho = map_to_rho(ell);
         std::pair<block_key, double> key = std::make_pair(bk, *rho);
+        Matrix<double> M;
+        DEBUG << "Blocks: " << ell;
+        DEBUG << "Rho: " << *rho;
+        DEBUG << "Key: " << bk;
         if (span > 1 and tb->eigensystems.count(key) > 0)
         {
             eigensystem es = tb->eigensystems.at(key);
             // alpha_hat.col(ell) = (es.P * (es.d.array().pow(span).matrix().asDiagonal() * 
             //             (es.Pinv * alpha_hat.col(ell - 1).template cast<std::complex<double> >()))).real();
+            Matrix<double> es_d = es.d_r_scaled.array().matrix().asDiagonal();
+            Matrix<double> espr = es.P_r;
+            Matrix<double> espinv = es.Pinv_r;
+            DEBUG << "D: " << es_d;
+            DEBUG << "Span: " << span;
+            DEBUG << "P_r" << espr;
+            DEBUG << "Pinv" << espinv;
             if (es.cplx)
+            {
+                //M = (es.P * (es.d_scaled.array().pow(span).matrix().asDiagonal() * 
+                //           (es.Pinv.template cast<std::complex<double> >()))).real();
                 alpha_hat.col(ell) = (es.P * (es.d_scaled.array().pow(span).matrix().asDiagonal() * 
                             (es.Pinv * alpha_hat.col(ell - 1).template cast<std::complex<double> >()))).real();
+            }
             else
+            {
+                //M = (es.P_r * (es.d_r_scaled.array().pow(span).matrix().asDiagonal() * es.Pinv_r));
                 alpha_hat.col(ell) = (es.P_r * (es.d_r_scaled.array().pow(span).matrix().asDiagonal() * 
                             (es.Pinv_r * alpha_hat.col(ell - 1))));
+            }
 
             // c(ell) = c_true(ell) * scale**(-span)
             ll += span * log(es.scale);
@@ -90,8 +108,11 @@ void HMM::Estep(bool fbOnly)
             Matrix<double> T = (*transition_map).at(*rho).template cast<double>();
             if (span != 1)
                 throw std::runtime_error("span != 1");
-            Matrix<double> M = (B * T.transpose()).pow(span);
+            M = (B * T.transpose()).pow(span);
             alpha_hat.col(ell) = M * alpha_hat.col(ell - 1);
+            Matrix<double> debug_b = B;
+            DEBUG << "T: " << T;
+            DEBUG << "B: " << debug_b;
         }
         CHECK_NAN(alpha_hat.col(ell));
         c(ell) = alpha_hat.col(ell).sum();
