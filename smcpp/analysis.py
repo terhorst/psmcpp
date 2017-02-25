@@ -353,17 +353,17 @@ class Analysis(BaseAnalysis):
                         "pchip": spline.PChipSpline}[spline_class]
         y0 = self._het / (2. * self._theta)
         logger.debug("Long term avg. effective population size: %f", y0)
-        y0 = np.log(y0)
+        # y0 = np.log(y0)
         if self.npop == 1:
             self._model = SMCModel(
                 time_points, knots, spline_class, self._populations[0])
-            self._model[-1] = y0
+            self._model[:] = y0
         else:
             split = self.rescale(tK - t1)  # just pick the midpoint as a starting value.
             mods = []
             for pid in self._populations:
                 mods.append(SMCModel(time_points, knots, spline_class, pid))
-                mods[-1][-1] = y0
+                mods[-1][:] = y0
             self._model = SMCTwoPopulationModel(mods[0], mods[1], split)
 
     def _init_optimizer(self, args, files, outdir, blocks, algorithm, xtol, ftol, learn_rho):

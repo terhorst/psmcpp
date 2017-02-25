@@ -343,7 +343,7 @@ class AsciiPlotter(Observer):
             x = np.cumsum(model.s)
             y = model.stepwise_values()
             u = model._knots
-            v = np.exp(model[:].astype('float'))
+            v = model[:].astype('float')
             data = "\n".join([",".join(map(str, row)) for row in zip(x, y)])
             data += "\n" * 3
             data += "\n".join([",".join(map(str, row)) for row in zip(u, v)])

@@ -76,7 +76,7 @@ class SMCModel(BaseModel):
         self._cumsum_s = np.cumsum(s)
         self._knots = np.array(knots)
         self._trans = np.log
-        # self._trans = lambda x: x
+        self._trans = self._invtrans = lambda x: x
         self._spline = self._spline_class(self.transformed_knots)
 
     def for_pop(self, pid):
@@ -92,7 +92,7 @@ class SMCModel(BaseModel):
         return len(self.knots)
 
     def randomize(self):
-        self[:] += np.random.normal(0., .0001, size=len(self[:]))
+        self[:] += np.random.normal(1., .0001, size=len(self[:]))
 
     @property
     def knots(self):
@@ -129,8 +129,10 @@ class SMCModel(BaseModel):
     def __call__(self, x):
         'Evaluate :self: at points x.'
         ret = np.array(
-            ad.admath.exp(self._spline(self._trans(x)))
+            self._invtrans(self._spline(self._trans(x)))
         )
+        return np.maximum(ret, 1e-8)
+        assert np.all(ret>0)
         return ret
 
     def stepwise_values(self):
