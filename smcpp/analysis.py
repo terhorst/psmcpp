@@ -6,7 +6,7 @@ import os.path
 import ad
 import multiprocessing
 import os
-import scipy.stats.mstats
+import scipy.stats
 import concurrent.futures as futures
 
 from . import estimation_tools, _smcpp, util, logging, jcsfs, spline
@@ -135,21 +135,39 @@ class BaseAnalysis:
             new_data = estimation_tools.thin_dataset(self._data, thinning)
             self._contigs = [Contig(data=d, pid=c.pid, fn=c.fn, n=c.n, a=c.a) 
                              for c, d in zip(self._contigs, new_data)]
+            logger.debug('Thinning complete')
         # elif np.any(ns > 0):
         #     logger.warn("Not thinning yet undistinguished lineages are present")
 
 
-    def _empirical_tmrca(self, k):
+    def _empirical_tmrca(self, k, w):
         '''Calculate the empirical distribution of TMRCA in the
         distinguished lineages by counting mutations'''
-        w = 100000
-        res = [x for c in estimation_tools.windowed_mutations(self._contigs, w)
-                 for ww, x in c
-                 if ww == w]
-        p = np.linspace(0., 1., k)[1:-1]
-        q = scipy.stats.mstats.mquantiles(res, p) / w
+        logger.debug("EMTRCA with w=%d", w)
+        wm = estimation_tools.windowed_mutations(self._contigs, w)
+        x, w = np.transpose([[x / ww, ww] for c in wm for ww, x in c if ww > .8 * w])
+        # Beta density estimation
+        N = 1e6
+        M = len(x)
+        for i in range(int(1e6)):
+            def _f(y):
+                return scipy.stats.beta.pdf(x[i], 1. + y / b, 1. + (1. - y) / b)
+
+        N = int(1e6)
+        mc = np.sort(np.random.randint(len(x), size=N))
+        b = scipy.stats.beta()
+        spl = [None] * N
+        for i in range(N):
+            spl[i] = b.rvs(
+        p = np.logspace(np.log10(.01), np.log10(.99), k)
+        q = scipy.stats.mstats.mquantiles(kde.resample(1000000), p)
+        print(p, q)
         # 2 * E(TMRCA) * self._theta ~= q
-        self._etmrca = np.unique(q / 2 / self._theta)
+        e = np.unique(q)
+        e = e[e > 0]
+        if not e.size:
+            e = np.array([1.])
+        self._etmrca = e
         logger.debug("empirical TMRCA distribution: %s", self._etmrca)
 
 
@@ -332,15 +350,13 @@ class Analysis(BaseAnalysis):
         self._perform_thinning(args.thinning)
 
         # Estimate empirical TMRCA distribution for distinguished pairs
-        self._empirical_tmrca(args.knots)
+        self._empirical_tmrca(args.knots,
+                              args.w or .1 * self._cM)
+        hs = np.r_[[0.], self._etmrca, [np.inf]]
 
-        # Set t1, tK if not already set
+        # Figure out knot placement.
         self._calculate_t1_tK(args)
-
-        self._init_knots(args.knots, args.t1, args.tK, args.offset)
-        for x in smcpp.defaults.additional_knots:
-            self._knots = np.append(self._knots, x * self._knots[-1])
-        hs = np.r_[[0.], self._knots, [np.inf]]
+        self._init_knots(self.rescale(args.t1), self.rescale(args.tK))
         self._init_model(self._N0, args.spline)
 
         # Auto-assign regularization penalty using a heuristic
@@ -365,18 +381,20 @@ class Analysis(BaseAnalysis):
             self._rho = 2 * self._N0 * args.r
         else:
             self._rho = self._theta
+        self._cM = 1e-2 / (self._rho / (2 * self._N0))
         assert np.all(np.isfinite([self._rho, self._theta]))
         logger.info("rho: %f", self._rho)
 
-    def _init_knots(self, num_knots, t1, tK, offset):
+
+    def _init_knots(self, t1, tK):
         self._knots = self._etmrca
-        # knot_spans = [1] * num_knots
-        # self._knots = np.cumsum(
-        #     estimation_tools.construct_time_points(self.rescale(t1),
-        #                                            self.rescale(tK),
-        #                                            knot_spans, offset))
+        if t1 < self._knots[0]:
+            self._knots = np.r_[t1, self._knots]
+        if tK > self._knots[-1]:
+            self._knots = np.r_[self._knots, tK]
         for x in smcpp.defaults.additional_knots:
-            self._knots = np.append(self._knots, x * self._knots[-1])
+            self._knots = np.r_[self._knots, x * self._knots[-1]]
+
 
     def _init_model(self, N0, spline_class):
         ## Initialize model
