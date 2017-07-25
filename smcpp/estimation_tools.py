@@ -250,18 +250,27 @@ def windowed_mutations(contigs, w):
 
 
 def _windowed_mutations_helper(contig, w):
-    q = contig.data[::-1].tolist()
-    c = mut = 0
+    assert w > 0
+    cd = contig.data[::-1]
+    seen = nmiss = mut = 0
     ret = []
-    while q:
-        last = span, *abnb = q.pop()
-        mut += span * (sum(abnb[::3]) % 2)
-        if c + span > w:
-            last[0] = span - (c - w)
-            q.append(last)
-            ret.append([w, mut])
-            c = mut = 0
+    i = cd.shape[0] - 1
+    last = cd[i].tolist()
+    while i >= 0:
+        span, *abnb = last
+        a = abnb[::3]
+        sp = min(w - seen, span)
+        extra = seen + span - w
+        seen += sp
+        if -1 not in a:
+            mut += sp * (sum(abnb[::3]) % 2)
+            nmiss += sp
+        if extra > 0:
+            last = [extra] + abnb
+            ret.append([nmiss, mut])
+            nmiss = mut = seen = 0
         else:
-            c += span
-    ret.append([c, mut])
+            i -= 1
+            last = cd[i].tolist()
+    ret.append([nmiss, mut])
     return ret
