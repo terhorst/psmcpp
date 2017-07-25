@@ -15,6 +15,7 @@ from .contig import Contig
 from .model import SMCModel, SMCTwoPopulationModel, PiecewiseModel
 from smcpp.optimize.optimizers import SMCPPOptimizer, TwoPopulationOptimizer
 from smcpp.optimize.plugins import analysis_saver, parameter_optimizer
+import smcpp.beta_de
 
 logger = logging.getLogger(__name__)
 
@@ -145,23 +146,19 @@ class BaseAnalysis:
         distinguished lineages by counting mutations'''
         logger.debug("EMTRCA with w=%d", w)
         wm = estimation_tools.windowed_mutations(self._contigs, w)
-        x, w = np.transpose([[x / ww, ww] for c in wm for ww, x in c if ww > .8 * w])
+        X, w = np.transpose([[x / ww, ww] for c in wm for ww, x in c if ww > .8 * w])
         # Beta density estimation
-        N = 1e6
-        M = len(x)
-        for i in range(int(1e6)):
-            def _f(y):
-                return scipy.stats.beta.pdf(x[i], 1. + y / b, 1. + (1. - y) / b)
-
-        N = int(1e6)
-        mc = np.sort(np.random.randint(len(x), size=N))
-        b = scipy.stats.beta()
-        spl = [None] * N
-        for i in range(N):
-            spl[i] = b.rvs(
+        N = int(1e3)
+        M = len(X)
+        h = M ** -0.5
+        logger.debug("Computing quantiles of TMRCA distribution")
+        with futures.ProcessPoolExecutor() as p:
+            m = p.map(smcpp.beta_de.sample_beta_kernel, X, it.repeat(N / M), it.repeat(h),
+                      chunksize=max(1, M // 10))
+            spl = [x for ret in m for x in ret]
         p = np.logspace(np.log10(.01), np.log10(.99), k)
-        q = scipy.stats.mstats.mquantiles(kde.resample(1000000), p)
-        print(p, q)
+        q = scipy.stats.mstats.mquantiles(spl, p)
+        logger.debug("Quantiles: %s", " ".join("F(%f)=%f" % c for c in zip(q, p)))
         # 2 * E(TMRCA) * self._theta ~= q
         e = np.unique(q)
         e = e[e > 0]
