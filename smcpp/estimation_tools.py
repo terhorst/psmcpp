@@ -249,8 +249,7 @@ def windowed_mutations(contigs, w):
         return list(p.map(_windowed_mutations_helper, contigs, itertools.repeat(w)))
 
 
-def _windowed_mutations_helper(*args):
-    contig, w = args
+def _windowed_mutations_helper(contig, w):
     q = contig.data[::-1].tolist()
     c = mut = 0
     ret = []
