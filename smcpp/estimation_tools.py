@@ -47,7 +47,7 @@ def compress_repeated_obs(dataset):
     # pad with illegal value at starting position
     nonce = np.zeros_like(dataset[0])
     nonce[:2] = [1, -999]
-    dataset = np.concatenate([[nonce], dataset, [nonce]])
+    dataset = np.r_[[nonce], dataset, [nonce]]
     nonreps = np.any(dataset[1:, 1:] != dataset[:-1, 1:], axis=1)
     newob = dataset[1:][nonreps]
     csw = np.cumsum(dataset[:, 0])[np.where(nonreps)]
