@@ -52,6 +52,11 @@ class BaseAnalysis:
         self._recode_nonseg(args.nonseg_cutoff)
 
 
+    @property
+    def ns(self):
+        return np.array([sum(c.n) for c in self._contigs])
+
+
     def _init_optimizer(self, outdir, algorithm, xtol, ftol, single):
         self._optimizer = self._OPTIMIZER_CLS(self, algorithm, xtol, ftol, single)
         if outdir:
@@ -88,7 +93,6 @@ class BaseAnalysis:
             assert c.data.shape[1] == 1 + 3 * len(c.n)
             logger.debug(c)
         logger.info("%d population%s", self.npop, "" if self.npop == 1 else "s")
-        ns = self._ns = np.array([sum(c.n) for c in self._contigs])
 
     def _validate_data(self):
         for c in self._contigs:
@@ -147,7 +151,7 @@ class BaseAnalysis:
         if isinstance(thinning, int):
             thinning = np.array([thinning] * len(self._contigs))
         if thinning is None:
-            thinning = (1000 * np.log(2 + self._ns)).astype("int")   # 500  * ns
+            thinning = (1000 * np.log(2 + self.ns)).astype("int")   # 500  * ns
         thinning[npop > 1] = 0
         if np.any(thinning > 1):
             logger.info("Thinning...")
@@ -237,7 +241,7 @@ class BaseAnalysis:
         Ne = self._watterson / self._theta
         logger.debug("Ne: %f", Ne)
         Ne *= 2 * self._N0
-        n = 2 + max(self._ns)
+        n = 2 + max(self.ns)
         t1 = args.t1 or 200 + np.log(.9) / (-n * (n - 1) / 2) * Ne
         if t1 <= 0:
             logger.error("--t1 should be >0")
